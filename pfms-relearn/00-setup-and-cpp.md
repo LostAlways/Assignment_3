@@ -12,6 +12,12 @@ Create a practice repo (or a folder in this one) called `pfms-practice/` with on
 - ROS 2 Humble install guide (Ubuntu deb packages): <https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debs.html>
 - pfms-support README and FAQ: <https://github.com/41012/pfms-support> (also look at the `2024` branch)
 
+**Dual boot (do this before Day 1 if you can)**
+- Use **Ubuntu 22.04.5 LTS** (the latest 22.04 point release; it ships a newer kernel for recent hardware). Not 24.04: the pfms packages are built for 22.04 (`jammy`) + Humble only.
+- In Windows first: back up, save your **BitLocker recovery key** (or suspend BitLocker), turn off **Fast Startup**, and shrink the Windows partition in Disk Management. Give Ubuntu **at least 100 GB**: ROS, Gazebo, builds and rosbags add up.
+- Write the ISO to a USB with Rufus or balenaEtcher, boot it, choose **"Install Ubuntu alongside Windows Boot Manager"**. Leave Secure Boot on. An NVIDIA driver install will ask you to enrol a MOK key: pick a password and confirm it on the blue screen at the next reboot.
+- If the clock is wrong after switching OS: `timedatectl set-local-rtc 1 --adjust-system-clock`.
+
 **Do**
 1. Install ROS 2 Humble (`ros-humble-desktop`) and `ros-dev-tools`.
 2. Add `source /opt/ros/humble/setup.bash` to `~/.bashrc`.

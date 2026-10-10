@@ -1,0 +1,475 @@
+<title>PFMS Re-learn Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a lap-board header (summary + 56-cell grid), a "next session" card, then 8 week sections of day rows. */
+:root {
+  --bg: #f3f5f4;
+  --surface: #ffffff;
+  --ink: #17221f;
+  --muted: #5c6b66;
+  --line: #d7dfdc;
+  --accent: #e2560f;        /* the /orange car */
+  --accent-soft: #fde5d7;
+  --done: #23855a;
+  --done-soft: #d9efe4;
+  --warn: #b7791f;
+  --grid: rgba(23,34,31,.045);
+  --p1: #5b6ccf; --p2: #2b8a9b; --p3: #e2560f; --p4: #8a5bc7; --p5: #c2417a; --p6: #3f8f3a;
+  --display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111816; --surface: #19221f; --ink: #e6ece9; --muted: #95a59f; --line: #2c3833;
+  --accent: #ff7a3a; --accent-soft: #3b2418; --done: #4cc28a; --done-soft: #183428; --warn: #e0a84a;
+  --grid: rgba(230,236,233,.035);
+  --p1: #8a98ff; --p2: #5cc2d2; --p3: #ff7a3a; --p4: #b48af0; --p5: #ef78a8; --p6: #74c86b;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #111816; --surface: #19221f; --ink: #e6ece9; --muted: #95a59f; --line: #2c3833;
+  --accent: #ff7a3a; --accent-soft: #3b2418; --done: #4cc28a; --done-soft: #183428; --warn: #e0a84a;
+  --grid: rgba(230,236,233,.035);
+  --p1: #8a98ff; --p2: #5cc2d2; --p3: #ff7a3a; --p4: #b48af0; --p5: #ef78a8; --p6: #74c86b;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-inline: 16px;
+  padding-block: 24px 64px;
+}
+.wrap { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.1; }
+a { color: var(--accent); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+/* Header */
+header { display: flex; flex-direction: column; gap: 6px; }
+header h1 { font-size: clamp(30px, 6vw, 44px); font-weight: 700; letter-spacing: -.01em; }
+header p { margin: 0; color: var(--muted); max-width: 62ch; }
+.sync { font-family: var(--mono); font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.sync i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.sync[data-state="cloud"] i { background: var(--done); }
+.sync[data-state="local"] i { background: var(--warn); }
+
+/* Board */
+.board { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.25fr); gap: 24px; }
+@media (max-width: 720px) { .board { grid-template-columns: minmax(0,1fr); } }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px 20px; align-content: start; }
+.stat .v { font-family: var(--display); font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.stat .v small { font-size: 18px; color: var(--muted); font-weight: 600; }
+.stat .l { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.pace { grid-column: 1 / -1; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; padding: 6px 10px; border-radius: 999px; background: var(--done-soft); color: var(--done); justify-self: start; }
+.pace[data-k="behind"] { background: var(--accent-soft); color: var(--accent); }
+.pace[data-k="none"] { background: transparent; color: var(--muted); padding-left: 0; font-weight: 500; }
+.start { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.start input { font: inherit; font-family: var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+
+.lap { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.lapgrid { display: grid; grid-template-columns: 34px repeat(7, minmax(0,1fr)); gap: 4px; }
+.lapgrid .wk { font-family: var(--mono); font-size: 11px; color: var(--muted); align-self: center; }
+.cell { aspect-ratio: 1.6; max-width: 100%; border-radius: 4px; border: 1px solid var(--line); background: var(--bg); display: grid; place-items: center; font-family: var(--mono); font-size: 10px; color: var(--muted); cursor: pointer; padding: 0; }
+.cell.buffer { border-style: dashed; }
+.cell.done { background: var(--done); border-color: var(--done); color: var(--surface); }
+.cell.next { border: 2px solid var(--accent); color: var(--accent); font-weight: 600; }
+.cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend b { width: 12px; height: 8px; border-radius: 2px; border: 1px solid var(--line); background: var(--bg); display: inline-block; }
+.legend b.d { background: var(--done); border-color: var(--done); }
+.legend b.n { border: 2px solid var(--accent); }
+.legend b.u { border-style: dashed; }
+
+/* Next up */
+.next-card { border: 2px solid var(--accent); background: var(--surface); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; }
+.next-card h2 { font-size: 26px; font-weight: 700; }
+.next-card .dw { margin: 0; }
+.next-card .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { font: inherit; font-weight: 600; font-size: 14px; border-radius: 6px; padding: 7px 14px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Weeks */
+.week { display: flex; flex-direction: column; gap: 10px; }
+.week-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; border-bottom: 2px solid var(--phase); padding-bottom: 6px; }
+.week-head h2 { font-size: 22px; font-weight: 700; }
+.week-head .wkn { font-family: var(--mono); font-size: 12px; color: var(--phase); font-weight: 600; }
+.week-head .cnt { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.week-head a { font-size: 13px; }
+.days { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.day { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-columns: auto minmax(0,1fr); gap: 4px 12px; padding: 10px 12px; }
+.day.is-done { background: var(--done-soft); border-color: transparent; }
+.day.is-next { border-color: var(--accent); }
+.check { width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--done); cursor: pointer; }
+.check:disabled { cursor: default; }
+.day-main { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.day-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.day-top .dn { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.day-top .tt { font-weight: 600; }
+.day.is-done .tt { text-decoration: line-through; text-decoration-color: var(--done); text-decoration-thickness: 2px; }
+.day-top .when { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.tag { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
+.tag.a { border-color: var(--accent); color: var(--accent); }
+details { font-size: 14px; color: var(--muted); }
+summary { cursor: pointer; font-size: 13px; width: fit-content; }
+details p { margin: 4px 0; }
+.note { font: inherit; font-size: 14px; width: 100%; resize: vertical; min-height: 34px; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--bg); color: var(--ink); }
+.note:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+.note[readonly] { opacity: .8; }
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 14px; max-width: calc(100% - 32px); }
+@media (prefers-reduced-motion: no-preference) { .day, .cell { transition: background-color .2s, border-color .2s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">41012 PFMS · 8 weeks · 1 hour a day</span>
+    <h1>PFMS Re-learn Tracker</h1>
+    <p>Tick a day when its "Done when" check passes. Add a note for what to pick up next time.</p>
+    <span class="sync" id="sync" data-state="wait"><i></i><span id="syncText">Connecting…</span></span>
+  </header>
+
+  <section class="board" aria-label="Progress summary">
+    <div class="stats">
+      <div class="stat"><div class="v mono" id="sDone">0<small>/56</small></div><div class="l">sessions done</div></div>
+      <div class="stat"><div class="v mono" id="sPct">0%</div><div class="l">of the plan</div></div>
+      <div class="stat"><div class="v mono" id="sStreak">0</div><div class="l">day streak</div></div>
+      <div class="stat"><div class="v mono" id="sWeek">W1</div><div class="l" id="sWeekL">current week</div></div>
+      <div class="pace" id="pace" data-k="none">Set a start date to track pace</div>
+      <label class="start" for="startDate">Start date
+        <input type="date" id="startDate">
+        <span id="endDate"></span>
+      </label>
+    </div>
+    <div class="lap">
+      <span class="eyebrow">The lap: 56 sessions</span>
+      <div class="lapgrid" id="lapgrid"></div>
+      <div class="legend"><span><b class="d"></b>done</span><span><b class="n"></b>next</span><span><b class="u"></b>buffer day</span></div>
+    </div>
+  </section>
+
+  <section class="next-card" id="nextCard" aria-live="polite"></section>
+
+  <div id="weeks" class="wrap" style="gap:28px"></div>
+
+  <footer>
+    Plan files live in <span class="mono">pfms-relearn/</span> on the <span class="mono">claude/friendly-ptolemy-17ir4g</span> branch of LostAlways/Assignment_3.
+    Week 1 needs Ubuntu 22.04 + ROS 2 Humble.
+  </footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const REPO = "https://github.com/LostAlways/Assignment_3/blob/claude/friendly-ptolemy-17ir4g/pfms-relearn/";
+const WEEKS = [
+  { n:1, title:"Environment + modern C++", file:"00-setup-and-cpp.md", phase:"--p1" },
+  { n:2, title:"OOP + vehicle maths", file:"01-oop-and-vehicle-maths.md", phase:"--p1" },
+  { n:3, title:"Assignment 1 rebuild", file:"02-assignment-1.md", phase:"--p3", a:true },
+  { n:4, title:"Concurrency", file:"03-concurrency.md", phase:"--p4" },
+  { n:5, title:"Graphs, TSP + Assignment 2", file:"04-graphs-and-assignment-2.md", phase:"--p3", a:true },
+  { n:6, title:"ROS 2 fundamentals", file:"05-ros2-fundamentals.md", phase:"--p2" },
+  { n:7, title:"A3 Track Racing: Pass/Credit", file:"06-assignment-3.md", phase:"--p3", a:true },
+  { n:8, title:"A3 Track Racing: Distinction/HD", file:"06-assignment-3.md", phase:"--p3", a:true },
+];
+const DAYS = [
+  ["Ubuntu, ROS 2 Humble, simulator","The Audi shows in RViz/Gazebo and `ros2 topic list` shows /orange/odom."],
+  ["CMake: libraries and executables","./main prints 5 for (0,0)→(3,4), and normaliseAngle(3π/2) prints -1.5708."],
+  ["GoogleTest","ctest is all green, and you watched one test go red on purpose."],
+  ["Memory, pointers, smart pointers","Your predicted constructor/destructor print order matched, or you can explain why it didn't."],
+  ["STL containers and algorithms","24 permutations print and your sorted order is correct."],
+  ["Doxygen + Git hygiene","The generated page shows your mainpage and every function has a description."],
+  ["Buffer / review","Self-check questions answered in LOG.md."],
+  ["Classes, constructors, access specifiers","Vehicle v; starts at (0,0,0) and setPose(0,0,4.0) stores yaw in −π…π."],
+  ["Inheritance and polymorphism","You can explain why `Shape s;` doesn't compile and why that's the point."],
+  ["Interface → base → derived","A vector<PlatformInterface*> with a car and a drone prints different times for the same goal."],
+  ["2D geometry for robots","A goal behind the car gives |α| ≈ π; a goal to the left gives positive α."],
+  ["Pure pursuit + bicycle model","Straight, 30° left, 30° right and unreachable-goal tests pass."],
+  ["A mock platform","The mock reaches (10, 5) within ~1 s of the arcLength / 2.91 prediction."],
+  ["Buffer / review","Self-check questions answered in LOG.md."],
+  ["Set up A1 project","Project builds with empty classes; constructing `Ackerman a;` passes a test."],
+  ["Controller base class","A test-only FakePlatform can set tolerance and read odometry."],
+  ["Ackerman maths + checkOriginToDestination","Tests reproduce your Day 12 values through a ControllerInterface*."],
+  ["Ackerman::reachGoal control loop","Against the mock: true for a reachable goal, false (no motion) for an unreachable one."],
+  ["Mission + run in Gazebo","The Audi visits 5 goals in Gazebo; distance and time are close to predictions."],
+  ["Tests + documentation polish","All tests green; Doxygen builds with no undocumented members."],
+  ["Buffer / review against marking criteria","Fixed the two weakest items from the A1 criteria table."],
+  ["std::thread basics","The class version exits cleanly without a stop call."],
+  ["Data races and std::mutex","Wrong total without protection, exactly 2,000,000 with lock_guard or atomic."],
+  ["condition_variable","CPU stays low while the consumer waits; no data lost."],
+  ["Non-blocking run() + status()","run() returns in < 1 ms; clean exit when finished and on Ctrl+C."],
+  ["Progress reporting","Progress rises smoothly and ends at exactly 100."],
+  ["Two platforms at once","Both move at the same time; mission reaches 100 when the slower one finishes."],
+  ["Buffer / review","Self-check questions answered; optional ThreadSanitizer run."],
+  ["Quadcopter platform","The drone takes off and reaches 3 goals using run() + status()."],
+  ["BASIC mode: both platforms","Both robots move together in Gazebo and the program ends at 100%."],
+  ["Graphs in C++","A 4-point square gives the expected Euclidean cost matrix."],
+  ["TSP by brute force","Tests pass and the TSP library depends on nothing from Mission or platforms."],
+  ["ADVANCED mode","Your TSP tests check the ordering function alone; Gazebo visits goals in that order."],
+  ["Tests, docs, design review","All green, and you can explain your threading design in 10 minutes."],
+  ["Buffer / review (⭐ SUPER mode)","Self-check answered; SUPER mode if time allows."],
+  ["Workspace, packages, CLI tools","From the CLI you can state the laser's angle range, increment, max range and odom rate."],
+  ["Publisher + subscriber","The Audi creeps forward and your node logs x, y, yaw at 1 Hz."],
+  ["Laser scans → world points","A cone 10 m ahead prints within ~0.3 m of its Gazebo position."],
+  ["RViz markers, services, parameters","The service call toggles behaviour; RViz shows cylinders on the cones."],
+  ["Threads in a ROS node","Ctrl+C shuts down cleanly; commands publish at a steady rate."],
+  ["rosbags + unit tests","colcon test is green with a bag-driven cone test."],
+  ["Buffer / review","Self-check questions answered."],
+  ["A3 package skeleton + interface","`ros2 node info` lists exactly the required topics and service."],
+  ["Cone detection","/orange/cones and the cone markers line up with the cones in RViz."],
+  ["Goal inside the track?","Bag-based test: on-road goal is inside, beyond-the-cones goal is outside."],
+  ["Obstacle in front","Bag with an obstacle returns true; cones-only bag returns false."],
+  ["Control to goals","Goals on /orange/goals make the car drive them and stop at the end."],
+  ["P/C unit tests + docs","colcon test green; Doxygen builds."],
+  ["Buffer / full P/C run-through","A full lap with supplied goals; worst failure fixed."],
+  ["Road centre from cone pairs","Road-centre markers sit mid-track ahead of the car."],
+  ["Goal management","The car generates its own goals and drives past the supplied ones."],
+  ["Full lap + tuning","One full lap with advanced:=true and no manual help."],
+  ["D/HD unit tests","All three bag-driven tests green."],
+  ["Documentation + self-VIVA","index.dox complete; VIVA questions answered out loud."],
+  ["⭐ Bonus: spline look-ahead","Smoother lap steering to a spline point, with a cited source and a test."],
+  ["Wrap-up + reflection","Scored against the A3 criteria; REFLECTION.md written."],
+];
+const isBuffer = i => (i % 7) === 6;
+const id = i => "d" + String(i + 1).padStart(2, "0");
+const $ = s => document.querySelector(s);
+
+let state = { days: {}, startDate: "" };   // days[id] = {done, completedOn, note}
+let mode = "wait";                          // cloud | local | readonly | wait
+let db = null;
+
+/* ---------- dates ---------- */
+const pad = n => String(n).padStart(2, "0");
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const diffDays = (a, b) => Math.round((parse(b) - parse(a)) / 86400000);
+const fmt = s => parse(s).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+
+/* ---------- local fallback ---------- */
+const LS = "pfms-tracker-v1";
+function loadLocal() { try { const raw = localStorage.getItem(LS); if (raw) state = Object.assign({ days:{}, startDate:"" }, JSON.parse(raw)); } catch (e) {} }
+function saveLocal() { try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} }
+
+/* ---------- persistence ---------- */
+const writeQueue = {};
+async function persistDay(key) {
+  const rec = state.days[key] || { done:false, completedOn:"", note:"" };
+  if (mode === "cloud" && db) {
+    // one write at a time per document
+    const prev = writeQueue[key] || Promise.resolve();
+    writeQueue[key] = prev.then(() => db.collection("progress").doc(key).set({ done: !!rec.done, completedOn: rec.completedOn || "", note: rec.note || "", day: Number(key.slice(1)) }))
+      .catch(e => handleWriteError(e));
+    return writeQueue[key];
+  }
+  if (mode === "local") saveLocal();
+}
+async function persistStart() {
+  if (mode === "cloud" && db) {
+    try { await db.doc("meta/settings").set({ startDate: state.startDate || "" }); } catch (e) { handleWriteError(e); }
+  } else if (mode === "local") saveLocal();
+}
+function handleWriteError(e) {
+  if (e && e.code === "invalid_argument") { setMode("readonly"); toast("This tracker is read-only for you."); }
+  else if (e && e.code === "quota_exceeded") toast("Storage is full. Your last change wasn't saved.");
+  else toast("Couldn't save that change. Check your connection and try again.");
+}
+
+function setMode(m) {
+  mode = m;
+  const el = $("#sync");
+  el.dataset.state = m === "cloud" ? "cloud" : m === "local" ? "local" : "wait";
+  $("#syncText").textContent = {
+    cloud: "Saved to your tracker (syncs across devices)",
+    local: "Saved in this browser only",
+    readonly: "Read-only view",
+    wait: "Connecting…",
+  }[m];
+  render();
+}
+
+/* ---------- derived ---------- */
+function stats() {
+  const doneIdx = DAYS.map((_, i) => i).filter(i => state.days[id(i)]?.done);
+  const next = DAYS.findIndex((_, i) => !state.days[id(i)]?.done);
+  // streak: consecutive calendar days with a completion, ending today or yesterday
+  const dates = new Set(doneIdx.map(i => state.days[id(i)].completedOn).filter(Boolean));
+  let streak = 0, cur = todayStr();
+  if (!dates.has(cur)) cur = addDays(cur, -1);
+  while (dates.has(cur)) { streak++; cur = addDays(cur, -1); }
+  let pace = null;
+  if (state.startDate) {
+    const elapsed = diffDays(state.startDate, todayStr()) + 1;   // sessions due including today
+    const expected = Math.max(0, Math.min(56, elapsed));
+    pace = { expected, delta: doneIdx.length - expected, started: elapsed > 0 };
+  }
+  return { done: doneIdx.length, next, streak, pace };
+}
+
+/* ---------- render ---------- */
+const canEdit = () => mode === "cloud" || mode === "local";
+
+function buildWeeks() {
+  const host = $("#weeks");
+  host.innerHTML = "";
+  WEEKS.forEach((w, wi) => {
+    const sec = document.createElement("section");
+    sec.className = "week";
+    sec.id = "week" + w.n;
+    sec.style.setProperty("--phase", `var(${w.phase})`);
+    sec.innerHTML = `<div class="week-head">
+        <span class="wkn">WEEK ${w.n}</span><h2></h2>
+        <a target="_blank" rel="noopener"></a>
+        <span class="cnt" data-cnt="${wi}"></span></div>
+      <ol class="days"></ol>`;
+    sec.querySelector("h2").textContent = w.title;
+    const a = sec.querySelector("a"); a.href = REPO + w.file; a.textContent = "Open plan ↗";
+    const ol = sec.querySelector("ol");
+    for (let k = 0; k < 7; k++) {
+      const i = wi * 7 + k, key = id(i), [title, when] = DAYS[i];
+      const li = document.createElement("li");
+      li.className = "day"; li.id = "row-" + key;
+      li.innerHTML = `<input type="checkbox" class="check" id="chk-${key}" aria-label="Mark day ${i+1} done">
+        <div class="day-main">
+          <div class="day-top"><span class="dn mono">DAY ${i+1}</span><label class="tt" for="chk-${key}"></label>
+            ${isBuffer(i) ? '<span class="tag">buffer</span>' : ""}${w.a && !isBuffer(i) ? '<span class="tag a">build</span>' : ""}
+            <span class="when" id="when-${key}"></span></div>
+          <details><summary>Done when</summary><p></p></details>
+          <textarea class="note" id="note-${key}" rows="1" placeholder="Notes / next step"></textarea>
+        </div>`;
+      li.querySelector(".tt").textContent = title;
+      li.querySelector("details p").textContent = when;
+      li.querySelector(".check").addEventListener("change", e => toggle(i, e.target.checked));
+      const ta = li.querySelector(".note");
+      ta.addEventListener("change", () => saveNote(i, ta.value));
+      ol.appendChild(li);
+    }
+    host.appendChild(sec);
+  });
+
+  const g = $("#lapgrid"); g.innerHTML = "";
+  WEEKS.forEach((w, wi) => {
+    const lbl = document.createElement("span"); lbl.className = "wk"; lbl.textContent = "W" + w.n; g.appendChild(lbl);
+    for (let k = 0; k < 7; k++) {
+      const i = wi * 7 + k;
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "cell" + (isBuffer(i) ? " buffer" : ""); b.id = "cell-" + id(i);
+      b.textContent = i + 1; b.title = `Day ${i+1}: ${DAYS[i][0]}`;
+      b.addEventListener("click", () => { const r = $("#row-" + id(i)); r.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" }); r.querySelector(".note").focus({ preventScroll: true }); });
+      g.appendChild(b);
+    }
+  });
+}
+
+function render() {
+  const s = stats();
+  $("#sDone").innerHTML = `${s.done}<small>/56</small>`;
+  $("#sPct").textContent = Math.round(s.done / 56 * 100) + "%";
+  $("#sStreak").textContent = s.streak;
+  const wkIdx = s.next === -1 ? 7 : Math.floor(s.next / 7);
+  $("#sWeek").textContent = "W" + (wkIdx + 1);
+  $("#sWeekL").textContent = WEEKS[wkIdx].title;
+
+  const pace = $("#pace");
+  if (!s.pace) { pace.dataset.k = "none"; pace.textContent = "Set a start date to track pace"; }
+  else if (!s.pace.started) { pace.dataset.k = "none"; pace.textContent = `Starts ${fmt(state.startDate)}`; }
+  else if (s.pace.delta >= 0) { pace.dataset.k = "ok"; pace.textContent = s.pace.delta === 0 ? "On pace" : `Ahead by ${s.pace.delta} session${s.pace.delta>1?"s":""}`; }
+  else { pace.dataset.k = "behind"; pace.textContent = `Behind by ${-s.pace.delta} session${s.pace.delta<-1?"s":""}`; }
+  const sd = $("#startDate");
+  if (document.activeElement !== sd) sd.value = state.startDate || "";
+  sd.disabled = !canEdit();
+  $("#endDate").textContent = state.startDate ? `· finishes ${fmt(addDays(state.startDate, 55))}` : "";
+
+  DAYS.forEach((_, i) => {
+    const key = id(i), rec = state.days[key] || {};
+    const row = $("#row-" + key), chk = $("#chk-" + key), note = $("#note-" + key), cell = $("#cell-" + key);
+    row.classList.toggle("is-done", !!rec.done);
+    row.classList.toggle("is-next", i === s.next);
+    cell.classList.toggle("done", !!rec.done);
+    cell.classList.toggle("next", i === s.next);
+    chk.checked = !!rec.done; chk.disabled = !canEdit();
+    if (document.activeElement !== note) note.value = rec.note || "";
+    note.readOnly = !canEdit();
+    const when = $("#when-" + key);
+    if (rec.done && rec.completedOn) when.textContent = "done " + fmt(rec.completedOn);
+    else if (state.startDate) when.textContent = "planned " + fmt(addDays(state.startDate, i));
+    else when.textContent = "";
+  });
+  document.querySelectorAll("[data-cnt]").forEach(el => {
+    const wi = Number(el.dataset.cnt); let c = 0;
+    for (let k = 0; k < 7; k++) if (state.days[id(wi*7+k)]?.done) c++;
+    el.textContent = `${c}/7`;
+  });
+
+  const card = $("#nextCard");
+  if (s.next === -1) {
+    card.innerHTML = `<span class="eyebrow">Finished</span><h2>All 56 sessions done</h2><p class="dw">The A3 project is complete. Grand Tour (Project 3) is the suggested next challenge.</p>`;
+  } else {
+    const w = WEEKS[Math.floor(s.next / 7)];
+    card.innerHTML = `<span class="eyebrow">Next session · Day ${s.next+1} · Week ${w.n}</span><h2></h2>
+      <p class="dw"><strong>Done when:</strong> <span></span></p>
+      <div class="row"><button class="btn" id="markNext" type="button">Mark Day ${s.next+1} done</button>
+      <a class="btn ghost" target="_blank" rel="noopener" href="${REPO + w.file}">Open week ${w.n} plan ↗</a></div>`;
+    card.querySelector("h2").textContent = DAYS[s.next][0];
+    card.querySelector(".dw span").textContent = DAYS[s.next][1];
+    const mb = card.querySelector("#markNext");
+    mb.disabled = !canEdit();
+    mb.addEventListener("click", () => toggle(s.next, true));
+  }
+}
+
+/* ---------- actions ---------- */
+function toggle(i, done) {
+  if (!canEdit()) return;
+  const key = id(i);
+  const rec = Object.assign({ note: "" }, state.days[key]);
+  rec.done = done; rec.completedOn = done ? (rec.completedOn || todayStr()) : "";
+  state.days = Object.assign({}, state.days, { [key]: rec });
+  if (done && !state.startDate) { state.startDate = addDays(todayStr(), -i); persistStart(); }
+  render(); persistDay(key);
+  if (done) toast(`Day ${i+1} done`);
+}
+function saveNote(i, text) {
+  if (!canEdit()) return;
+  const key = id(i);
+  const rec = Object.assign({ done:false, completedOn:"" }, state.days[key], { note: text.slice(0, 2000) });
+  state.days = Object.assign({}, state.days, { [key]: rec });
+  persistDay(key); toast("Note saved");
+}
+$("#startDate").addEventListener("change", e => { if (!canEdit()) return; state.startDate = e.target.value; render(); persistStart(); });
+
+let tt;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => t.hidden = true, 1800); }
+
+/* ---------- boot ---------- */
+buildWeeks();
+render();
+
+(async function connect() {
+  const c = window.claude;
+  if (!c || typeof c.use !== "function") { loadLocal(); setMode("local"); return; }
+  let user = null;
+  try { [db, user] = await Promise.all([c.use("db"), c.use("user")]); } catch (e) { db = null; }
+  if (!db) { loadLocal(); setMode("local"); return; }
+  let writable = true;
+  try { if (user && typeof user.can === "function") { const w = await user.can("data.write"); if (w === false) writable = false; } } catch (e) {}
+  setMode(writable ? "cloud" : "readonly");
+  db.collection("progress").onSnapshot(snap => {
+    const days = {};
+    snap.docs.forEach(d => { const v = d.data(); if (v) days[d.id] = { done: !!v.done, completedOn: v.completedOn || "", note: v.note || "" }; });
+    state.days = days; render();
+  }, () => { loadLocal(); setMode("local"); });
+  db.doc("meta/settings").onSnapshot(snap => {
+    const v = snap.exists ? snap.data() : null;
+    state.startDate = (v && v.startDate) || ""; render();
+  }, () => {});
+})();
+</script>

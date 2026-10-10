@@ -44,6 +44,7 @@ Rules that make 1 hour/day work:
 Supporting material:
 - [formulas.md](formulas.md): every equation you need in one place (pure pursuit, transforms, laser → world, quaternions).
 - [LOG.md](LOG.md): your daily log (template included).
+- **Progress tracker:** <https://claude.ai/artifact/1FUjtwYZMQ8yhr5L6dkGFQ> (source in `tracker.html`).
 
 Each week is **6 working sessions + 1 buffer**. That is 48 planned hours plus 8 buffer hours across the 2 months.
 
