@@ -44,6 +44,7 @@ Rules that make 1 hour/day work:
 Supporting material:
 - [formulas.md](formulas.md): every equation you need in one place (pure pursuit, transforms, laser → world, quaternions).
 - [LOG.md](LOG.md): your daily log (template included).
+- [testing-without-the-simulator.md](testing-without-the-simulator.md): what's still public without university access, and how to test your C++ with a fake car before using Gazebo. Starter project in [examples/sim-free-starter/](examples/sim-free-starter/).
 - **Progress tracker:** <https://claude.ai/artifact/1FUjtwYZMQ8yhr5L6dkGFQ> (source in `tracker.html`).
 
 Each week is **6 working sessions + 1 buffer**. That is 48 planned hours plus 8 buffer hours across the 2 months.
@@ -72,7 +73,8 @@ Track Racing builds directly on A1 (Ackerman steering) and A2 (goal following in
 2. **The simulator packages** from <https://github.com/41012/pfms-support>.
    - The current `README` installs via an apt repo: `sudo apt install pfms-ros-integration ros-humble-pfms ros-dev-tools`.
    - The **`2024` branch** contains the exact version from your year, including `a3_racing.launch.py`, `a3_search.launch.py`, `a3_terrain.launch.py` and the `pipes` `.deb` packages. If the current apt packages don't include the A3 launch files, use the `2024` branch (instructions in its `INSTALLATION.md`).
-3. **Your old skeleton code** (`a1_skeleton`, `2024a_a2_skeleton`, `a3_skeleton`) from your university GitHub repo, if you still have access. If not, that's fine: the plan has you write your own interfaces from the specs, which teaches more anyway. Where an interface is needed, the phase file gives a minimal version to write yourself.
+3. **No university access?** The simulator and platform libraries are public. See [testing-without-the-simulator.md](testing-without-the-simulator.md) for what's missing and what to use instead.
+4. **Your old skeleton code** (`a1_skeleton`, `2024a_a2_skeleton`, `a3_skeleton`) from your university GitHub repo, if you still have access. If not, that's fine: the plan has you write your own interfaces from the specs, which teaches more anyway. Where an interface is needed, the phase file gives a minimal version to write yourself.
 
 > Note on launch names: the 2024 PDFs say `ros2 launch gazebo_tf a2.launch.py`. Newer pfms-support releases use `ros2 launch pfms a2.launch.py`. Run `ros2 pkg list | grep -E "pfms|gazebo_tf"` to see which you have.
 
